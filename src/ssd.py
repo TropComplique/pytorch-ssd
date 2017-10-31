@@ -1,29 +1,17 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from multibox_layer import MultiBoxLayer
-
-
-class L2Norm(nn.Module):
-    def __init__(self, in_channels):
-        super(L2Norm, self).__init__()
-        self.weight = nn.Parameter(torch.randn(in_channels))
-
-    def forward(self, x):
-        """out = scales * x / sqrt(\sum x_i^2)"""
-        unsqueezed_weight = self.weight.unsqueeze(0).unsqueeze(2).unsqueeze(3)
-        return unsqueezed_weight * x * x.pow(2).sum(1, keepdim=True).clamp(min=1e-12).rsqrt()
+from .multibox_layer import MultiBoxLayer
 
 
 class SSD(nn.Module):
     """SSD300 model."""
-    input_size = 300
-
-    def __init__(self):
+    def __init__(self, num_classes=21):
         super(SSD, self).__init__()
 
         self.base = VGG16()
         # output feature map size: 38
+
         self.norm4 = L2Norm(512)
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2, ceil_mode=True)
         # output feature map size: 19
@@ -55,10 +43,14 @@ class SSD(nn.Module):
         self.conv11_2 = nn.Conv2d(128, 256, kernel_size=3)
         # output feature map size: 1
 
-        self.multibox = MultiBoxLayer()
+        self.multibox = MultiBoxLayer(num_classes)
 
     def forward(self, x):
-        hs = []
+        """
+        Arguments:
+            x: a float tensor with shape [n, 3, 300, 300].
+        """
+        hs = []  # hidden states
         h = self.base(x)
         hs.append(self.norm4(h))  # conv4_3
         h = self.pool4(h)
@@ -109,3 +101,15 @@ def VGG16():
             ]
             in_channels = x
     return nn.Sequential(*layers)
+
+
+class L2Norm(nn.Module):
+    """Channel-wise L2 normalization."""
+    def __init__(self, in_channels):
+        super(L2Norm, self).__init__()
+        self.weight = nn.Parameter(torch.randn(in_channels))
+
+    def forward(self, x):
+        """out = weight * x / sqrt(\sum x_i^2)"""
+        unsqueezed_weight = self.weight.unsqueeze(0).unsqueeze(2).unsqueeze(3)
+        return unsqueezed_weight * x * x.pow(2).sum(1, keepdim=True).clamp(min=1e-9).rsqrt()

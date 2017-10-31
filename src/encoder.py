@@ -4,7 +4,10 @@ import itertools
 
 
 class DataEncoder:
-    def __init__(self):
+    """
+    It transforms data before feeding the detector.
+    """
+    def __init__(self, num_classes=20):
         """Compute default box sizes with scale and aspect transform."""
         input_size = 300.0
         # we will divide by input_size,
@@ -57,14 +60,12 @@ class DataEncoder:
         # github.com/rykov8/ssd_keras/issues/53
         # github.com/weiliu89/caffe/issues/155
 
+        self.num_classes = num_classes
+
     def encode(self, boxes, classes, threshold=0.5):
-        """Transform ground truth bounding boxes and class labels to
-        SSD default boxes and classes.
-
+        """Encode ground truth bounding boxes and class labels to
+        format that is used for training of SSD.
         Note: it takes as input boxes and classes for one image, not batch.
-
-        Match each object box to all the default boxes,
-        pick the ones with the IoU > threshold.
 
         Arguments:
             boxes: a float tensor of shape [#obj, 4],
@@ -74,7 +75,8 @@ class DataEncoder:
             threshold: a float number, Jaccard index (IoU) threshold.
 
         Returns:
-            loc:  a float tensor of shape [8732, 4], bounding boxes.
+            loc: a float tensor of shape [8732, 4],
+                transformations of default boxes.
             label: a long tensor of shape [8732], class labels.
         """
         default_boxes = self.default_boxes
@@ -119,26 +121,30 @@ class DataEncoder:
         # background is where overlap is too small
         label[iou < threshold] = 0
         # so now transformations (elements of 'loc')
-        # where iou < threshold are kinda meaningless
+        # where iou < threshold are kinda meaningless,
+        # because in bounding box regression we
+        # are using only matched boxes (boxes with iou >= threshold)
 
         # so, for each default box we assigned an object with its class,
         # some default boxes are background, it's where overlap with
         # any ground truth box is small
-
         return loc, label
 
     def decode(self, loc, conf, nms_threshold=0.5):
-        """Transform predicted loc/conf back to real bounding
-        box locations and class labels.
+        """Interpret output of SSD.
+
+        Transforms predicted loc/conf back to real
+        bounding box locations and class labels.
         Note: it takes as input predictions for one image, not batch.
 
         Arguments:
             loc: a float tensor of shape [8732, 4].
-            conf: a float tensor of shape [8732, 21].
+            conf: a float tensor of shape [8732, num_classes + 1].
 
         Returns:
-            boxes: a float tensor of shape [#obj, 4].
-            labels: a long tensor of shape [#obj].
+            output_boxes: a float tensor of shape [#obj, 4].
+            output_labels: a long tensor of shape [#obj].
+            output_conf: a float tensor of shape [#obj].
         """
         default_boxes = self.default_boxes
         variances = self.variances
@@ -149,7 +155,7 @@ class DataEncoder:
         # find default boxes where maximum confidence is for non background
         ids = labels.nonzero().squeeze()  # [#boxes]
         if ids.numel() == 0:
-            return [], [], []
+            return torch.FloatTensor([]), torch.LongTensor([]), torch.FloatTensor([])
         labels = labels[ids]
         max_conf = max_conf[ids]
         loc = loc[ids]
@@ -163,7 +169,7 @@ class DataEncoder:
 
         output_boxes, output_labels, output_conf = [], [], []
         # do nms for each label
-        for label in range(1, 21 + 1):
+        for label in range(1, self.num_classes + 1):
             mask = (labels == label).nonzero().squeeze()
             if mask.numel() == 0:
                 continue
@@ -175,6 +181,9 @@ class DataEncoder:
         output_boxes = torch.cat(output_boxes, 0)
         output_labels = torch.cat(output_labels, 0)
         output_conf = torch.cat(output_conf, 0)
+
+        # transform labels to range from 0 to (num_classes - 1)
+        output_labels -= 1
 
         return output_boxes, output_labels, output_conf
 

@@ -6,12 +6,14 @@ from torch.autograd import Variable
 
 class MultiBoxLoss(nn.Module):
 
-    def __init__(self):
+    def __init__(self, num_classes=21):
         super(MultiBoxLoss, self).__init__()
-        self.num_classes = 21
+        self.num_classes = num_classes
 
     def forward(self, loc_preds, loc_targets, conf_preds, label_targets):
-        """Compute loss.
+        """Compute sum of bounding box regression loss
+        and class label prediction loss.
+
         Note: all arguments are Variables.
 
         Arguments:
@@ -19,18 +21,18 @@ class MultiBoxLoss(nn.Module):
                 predicted locations.
             loc_targets:  a float tensor of shape [n, 8732, 4],
                 encoded target locations.
-            conf_preds: a float tensor of shape [n, 8732, 21],
+            conf_preds: a float tensor of shape [n, 8732, num_classes],
                 predicted class confidences.
             label_targets: a long tensor of shape [n, 8732],
                 encoded target classes.
 
         Returns:
-            a float number
+            a float number.
         """
 
         # background class = 0,
-        # pos means that a default bounding box is matched to
-        # some ground truth box
+        # pos means that a default bounding box is
+        # matched to some ground truth box
         pos = label_targets > 0  # [n, 8732], n is batch size
         num_matched_boxes = pos.data.long().sum()
         if num_matched_boxes == 0:
@@ -51,12 +53,10 @@ class MultiBoxLoss(nn.Module):
         # probability event. It shouldn't happen even if there are ~1000
         # pos boxes in an image. gt(0) operation is just in case
 
-        mask = pos_and_neg.unsqueeze(2).expand_as(conf_preds)  # [n, 8732, 21]
-        preds = conf_preds[mask].view(-1, self.num_classes)  # [#pos + #neg, 21]
-        targets = conf_targets[pos_and_neg]  # [#pos + #neg]
+        mask = pos_and_neg.unsqueeze(2).expand_as(conf_preds)  # [n, 8732, num_classes]
+        preds = conf_preds[mask].view(-1, self.num_classes)  # [#pos + #neg, num_classes]
+        targets = label_targets[pos_and_neg]  # [#pos + #neg]
         conf_loss = F.cross_entropy(preds, targets, size_average=False)
-        # we are computing cross entropy the second time,
-        # can we skip it?
 
         loc_loss /= num_matched_boxes
         conf_loss /= num_matched_boxes
@@ -64,11 +64,11 @@ class MultiBoxLoss(nn.Module):
 
 
 def cross_entropy_loss(logits, targets):
-    """Cross entropy loss w/o averaging across all samples.
+    """Cross entropy loss without averaging across all samples.
 
     Arguments:
-      logits: a float tensor of shape [n, d].
-      targets: a long tensor of shape [n].
+        logits: a float tensor of shape [n, d].
+        targets: a long tensor of shape [n].
 
     Returns:
         a float tensor of shape [n].
@@ -80,7 +80,11 @@ def cross_entropy_loss(logits, targets):
 
 
 def hard_negative_mining(conf_loss, pos):
-    """Return negative indices that is 3x the number as postive indices.
+    """Find boxes with biggest confidence loss
+    (negatives) and return them.
+
+    Number of negatives is 3x of
+    the number as positives.
 
     Arguments:
         conf_loss: a float tensor of shape [n*8732],
@@ -94,7 +98,8 @@ def hard_negative_mining(conf_loss, pos):
     batch_size, num_boxes = pos.size()
 
     # i don't completely understand why
-    # reshaping here works correctly
+    # reshaping here works correctly:
+    # why after reshaping losses matched with proper default boxes?
     conf_loss = conf_loss.view(batch_size, -1)  # [n, 8732]
 
     # we are only interested in boxes where
@@ -108,6 +113,7 @@ def hard_negative_mining(conf_loss, pos):
     # rank of each default box,
     # lower rank -> higher loss
     _, rank = idx.sort(1, descending=False)  # [n, 8732]
+    # ranks are from 0 to 8731
 
     # number of matched boxes per image in batch
     num_pos = pos.long().sum(1)  # [n]
@@ -115,4 +121,8 @@ def hard_negative_mining(conf_loss, pos):
 
     neg = rank < num_neg.unsqueeze(1).expand_as(rank)  # [n, 8732]
     # binary tensor, with ones where boxes are with high loss
+
+    # when some values in num_pos are too big
+    # some boxes in 'pos' and in 'neg' can overlap,
+    # but it is improbable.
     return neg
