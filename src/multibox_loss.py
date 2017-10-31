@@ -104,7 +104,7 @@ def hard_negative_mining(conf_loss, pos):
 
     # we are only interested in boxes where
     # true background is confused with something else
-    conf_loss[pos] = -1.0
+    conf_loss[pos].data = torch.FloatTensor([-1.0]).cuda()
     # so we don't consider boxes with true objects in them
 
     # sort default boxes by loss

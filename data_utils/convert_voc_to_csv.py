@@ -4,7 +4,7 @@ import os
 import xml.etree.ElementTree as ET
 from tqdm import tqdm
 
-xml_dir = '/home/dan/data/VOCdevkit/VOC2007/Annotations/'
+xml_dir = '/home/ubuntu/data/VOCdevkit/VOC2007/Annotations/'
 file = open('voc07_test.csv', 'w')
 
 for xml_name in tqdm(os.listdir(xml_dir)):

@@ -2,6 +2,7 @@ import os
 import torch
 import torch.utils.data as data
 import cv2
+import numpy as np
 from .encoder import compute_iou, DataEncoder
 
 

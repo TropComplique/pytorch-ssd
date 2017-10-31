@@ -13,7 +13,7 @@ VOC_LABELS = [
     'sheep', 'sofa', 'train', 'tvmonitor'
 ]
 
-xml_dir = '/home/dan/data/VOCdevkit/VOC2007/Annotations/'
+xml_dir = '/home/ubuntu/data/VOCdevkit/VOC2007/Annotations/'
 file = open('voc07_test_by_image.txt', 'w')
 
 for xml_name in tqdm(os.listdir(xml_dir)):

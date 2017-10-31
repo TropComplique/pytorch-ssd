@@ -7,8 +7,8 @@ from torch.utils.data import DataLoader
 from src import SSD, DataEncoder, ListDataset, MultiBoxLoss
 
 
-IMAGE_DIR = '~/data'
-LIST_FILE = ''
+IMAGE_DIR = '/home/ubuntu/data/VOCdevkit/VOC2007/JPEGImages/'
+LIST_FILE = 'data_utils/voc07_test_by_image.txt'
 NUM_CLASSES = 20
 BATCH_SIZE = 20
 SAVE_EVERY = 10

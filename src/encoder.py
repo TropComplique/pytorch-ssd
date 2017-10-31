@@ -95,6 +95,8 @@ class DataEncoder:
 
         # assign a ground truth box to each default box
         iou, max_idx = iou.max(0)  # [8732], [8732]
+        max_idx = max_idx.squeeze()
+        iou = iou.squeeze()
         boxes = boxes[max_idx]  # [8732, 4]
 
         # in other words: for each default box we find
@@ -146,6 +148,8 @@ class DataEncoder:
             output_labels: a long tensor of shape [#obj].
             output_conf: a float tensor of shape [#obj].
         """
+        loc = loc.data.cpu()
+        conf = conf.data.cpu()
         default_boxes = self.default_boxes
         variances = self.variances
 

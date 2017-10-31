@@ -6,11 +6,12 @@ from torch.utils.data import DataLoader
 from src import SSD, DataEncoder, ListDataset, MultiBoxLoss
 
 
-IMAGE_DIR = '~/data'
-LIST_FILE = ''
+IMAGE_DIR = '/home/ubuntu/data/VOCdevkit/VOC2007/JPEGImages/'
+LIST_FILE = 'data_utils/voc07_test_by_image.txt'
 NUM_CLASSES = 20
 BATCH_SIZE = 20
-MODEL_PATH = ''
+MODEL_PATH = 'pretrained.pth'
+NMS_THRESHOLD = 0.5
 
 
 def eval():
@@ -47,25 +48,26 @@ def eval():
 
         for loc, conf in zip(loc_preds, conf_preds):
             output_boxes, output_labels, output_conf = decoder(loc, conf, NMS_THRESHOLD)
-            boxes += output_boxes
-            labels += output_labels
-            confs += output_conf
+            boxes += [output_boxes]
+            labels += [output_labels]
+            confs += [output_conf]
 
-    boxes = torch.cat(boxes)
-    labels = torch.cat(labels)
-    confs = torch.cat(confs)
+    boxes = torch.cat(boxes).numpy()
+    labels = torch.cat(labels).numpy()
+    confs = torch.cat(confs).numpy()
 
     print('loss: {0:.2f}'.format(
         total_loss.data[0]
     ))
 
-    _write_training_logs(losses)
+    _write_results(boxes, labels, confs)
 
 
-def _write_training_logs(losses):
-    with open('training_logs.txt', 'w') as f:
-        column_names = 'epoch,loss\n'
-        f.write(column_names)
-        for i in losses:
-            values = ('{0},{1:.3f}\n').format(*i)
+def _write_results(boxes, labels, confs):
+    with open('results.txt', 'w') as f:
+        for b, l, c in zip(boxes, labels, confs):
+            values = ('{0},{1},{2},{3},{4},{5}\n').format(*b, l, c)
             f.write(values)
+
+            
+eval()
