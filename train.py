@@ -102,3 +102,5 @@ def _write_training_logs(losses):
         for i in losses:
             values = ('{0},{1:.3f}\n').format(*i)
             f.write(values)
+
+train()

@@ -170,7 +170,7 @@ def random_crop(img, boxes, labels):
             roi = torch.FloatTensor([[x, y, x + w, y + h]])
 
             center = 0.5*(boxes[:, :2] + boxes[:, 2:])  # [#obj, 2]
-            roi2 = roi.expand_as(center)  # [#obj, 4]
+            roi2 = roi.expand(center.size(0), 4)  # [#obj, 4]
 
             # centers inside the crop
             mask = (center > roi2[:, :2]) & (center < roi2[:, 2:])  # [#obj, 2]

@@ -2,6 +2,7 @@ import torch
 from torch.autograd import Variable
 import math
 import os
+import cv2
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 from src import SSD, DataEncoder, ListDataset, MultiBoxLoss
@@ -76,9 +77,10 @@ def eval():
 
                 # scale bounding boxes coordinates to absolute
                 # values x_min, y_min, x_max, y_max
-                name = image_names[i]
-                h, w = cv2.imread(os.path.join(dataset.root, fname), cv2.IMREAD_COLOR).shape[:2]
-                output_boxes /= torch.FloatTensor([w, h, w, h]).expand_as(output_boxes)
+                name = image_names[i[0]]
+                h, w = cv2.imread(os.path.join(dataset.root, name), cv2.IMREAD_COLOR).shape[:2]
+                output_boxes *= torch.FloatTensor([w, h, w, h]).expand_as(output_boxes)
+                output_boxes = output_boxes.long()
 
                 filenames += [name]*output_boxes.size(0)
                 boxes += [output_boxes]
@@ -97,9 +99,9 @@ def eval():
 
 
 def _write_results(filenames, boxes, labels, confs):
-    with open('results.txt', 'w') as f:
-        for f, b, l, c in zip(filenames, boxes, labels, confs):
-            values = (f + ',{0},{1},{2},{3},{4},{5}\n').format(*b, VOC_LABELS[l], c)
+    with open('voc_test_results.csv', 'w') as f:
+        for n, b, l, c in zip(filenames, boxes, labels, confs):
+            values = (n + ',{0},{1},{2},{3},{4},{5:.3f}\n').format(*b, VOC_LABELS[l], c)
             f.write(values)
 
 

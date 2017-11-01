@@ -101,6 +101,7 @@ def hard_negative_mining(conf_loss, pos):
     # reshaping here works correctly:
     # why after reshaping losses matched with proper default boxes?
     conf_loss = conf_loss.view(batch_size, -1)  # [n, 8732]
+    conf_loss = conf_loss.clone()  # without this next line doesn't work!?
 
     # we are only interested in boxes where
     # true background is confused with something else
