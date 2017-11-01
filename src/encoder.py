@@ -86,6 +86,9 @@ class DataEncoder:
         # x0 = cx - w/2, y0 = cy - h/2
         # x1 = cx + w/2, y1 = cy + h/2
 
+        if boxes.numel() == 0:
+            return torch.zeros(8732, 4), torch.zeros(8732)
+
         # compute IoU between each ground truth box and all default boxes
         iou = compute_iou(
             boxes,
@@ -94,9 +97,9 @@ class DataEncoder:
         )  # [#obj, 8732], '#obj' is boxes.size(0), number of ground truth boxes
 
         # assign a ground truth box to each default box
-        iou, max_idx = iou.max(0)  # [8732], [8732]
-        max_idx = max_idx.squeeze()
-        iou = iou.squeeze()
+        iou, max_idx = iou.max(0)
+        max_idx = max_idx.squeeze()  # [8732]
+        iou = iou.squeeze()  # [8732]
         boxes = boxes[max_idx]  # [8732, 4]
 
         # in other words: for each default box we find
@@ -144,12 +147,11 @@ class DataEncoder:
             conf: a float tensor of shape [8732, num_classes + 1].
 
         Returns:
-            output_boxes: a float tensor of shape [#obj, 4].
+            output_boxes: a float tensor of shape [#obj, 4],
+                in the form (x_min, y_min, x_max, y_max).
             output_labels: a long tensor of shape [#obj].
             output_conf: a float tensor of shape [#obj].
         """
-        loc = loc.data.cpu()
-        conf = conf.data.cpu()
         default_boxes = self.default_boxes
         variances = self.variances
 
@@ -170,6 +172,7 @@ class DataEncoder:
         cxcy = default_boxes[:, :2] + default_boxes[:, 2:]*(loc[:, :2]*variances[0])
         wh = default_boxes[:, 2:]*(loc[:, 2:]*variances[1]).exp()
         boxes = torch.cat([cxcy - 0.5*wh, cxcy + 0.5*wh], 1)  # [#boxes, 4]
+        boxes = boxes.clamp(min=0.0, max=1.0)
 
         output_boxes, output_labels, output_conf = [], [], []
         # do nms for each label

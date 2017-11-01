@@ -19,6 +19,7 @@ class ListDataset(data.Dataset):
         Arguments:
             root: a string, directory with images.
             list_file: a string, path to an index file.
+            num_classes: an integer, number of classes (without background).
             train: boolean, train or test.
         """
         self.img_size = 300
@@ -75,14 +76,15 @@ class ListDataset(data.Dataset):
         boxes = self.boxes[idx].clone()
         labels = self.labels[idx].clone()
 
-        # data augmentation while training
-        if self.train:
-            img, boxes = random_flip(img, boxes)
-            img, boxes, labels = random_crop(img, boxes, labels)
+        if boxes.numel() != 0:
+            # data augmentation while training
+            if self.train:
+                img, boxes = random_flip(img, boxes)
+                img, boxes, labels = random_crop(img, boxes, labels)
 
-        # scale bounding box coordinates to [0,1]
-        h, w = img.shape[:2]
-        boxes /= torch.FloatTensor([w, h, w, h]).expand_as(boxes)
+            # scale bounding box coordinates to [0,1]
+            h, w = img.shape[:2]
+            boxes /= torch.FloatTensor([w, h, w, h]).expand_as(boxes)
 
         img = cv2.resize(
             img, ((self.img_size, self.img_size)),
@@ -93,13 +95,18 @@ class ListDataset(data.Dataset):
         img = torch.FloatTensor(img)
 
         loc_target, label_target = self.data_encoder.encode(boxes, labels)
-        return img, loc_target, label_target
+
+        if self.train:
+            return img, loc_target, label_target
+        else:
+            # when evaluating we also want to know image filename
+            return torch.LongTensor([idx]), img, loc_target, label_target
 
     def __len__(self):
         return self.num_images
 
 
-def random_flip(self, img, boxes):
+def random_flip(img, boxes):
     """Randomly flip an image and its bounding boxes.
 
     For a bounding box (xmin, ymin, xmax, ymax), the flipped
