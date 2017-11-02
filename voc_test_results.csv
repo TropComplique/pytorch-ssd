@@ -1,3 +1,4 @@
+image,xmin,ymin,xmax,ymax,label,confidence
 003583.jpg,74,100,405,315,horse,0.982
 003583.jpg,159,0,309,305,person,0.986
 006435.jpg,111,182,386,293,car,0.993

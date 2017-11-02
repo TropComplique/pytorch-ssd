@@ -24,7 +24,6 @@ VOC_LABELS = [
 
 
 def eval():
-    """Trains SSD300. Saves the trained model and logs."""
 
     dataset = ListDataset(
         IMAGE_DIR, LIST_FILE,
@@ -100,6 +99,8 @@ def eval():
 
 def _write_results(filenames, boxes, labels, confs):
     with open('voc_test_results.csv', 'w') as f:
+        columns = 'image,xmin,ymin,xmax,ymax,label,confidence'
+        f.write(columns)
         for n, b, l, c in zip(filenames, boxes, labels, confs):
             values = (n + ',{0},{1},{2},{3},{4},{5:.3f}\n').format(*b, VOC_LABELS[l], c)
             f.write(values)
